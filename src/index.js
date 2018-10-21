@@ -9,12 +9,62 @@ TopLevelWrapper.prototype.render = function() {
 
 class FeactDOMComponent {
   constructor(element) {
-    console.log("FeactDOMComponent::element", element);
     this._currentElement = element;
   }
 
+  _updateDomProperties(lastProps, nextProps) {
+    // Need to figure this out.... it is used to update CSS mostly.
+  }
+
+  _updateDomChildren(lastProps, nextProps) {
+    console.log("FeactCompostComponentWrapper#_updateDomChildren", {
+      lastProps,
+      nextProps
+    });
+    const lastContent = lastProps.children;
+    const nextContent = nextProps.children;
+
+    if (!nextContent) {
+      this.updateTextContent("");
+    } else if (lastContent !== nextContent) {
+      this.updateTextContent("" + nextContent);
+    }
+  }
+
+  updateTextContent(text) {
+    const node = this._hostNode;
+
+    const firstChild = node.firstChild;
+
+    if (
+      firstChild &&
+      firstChild === node.lastChild &&
+      firstChild.nodeType === 3
+    ) {
+      firstChild.nodeValue = text;
+      return;
+    }
+
+    node.textContent = text;
+  }
+
+  receiveComponent(nextElement) {
+    const prevElement = this._currentElement;
+    this.updateComponent(prevElement, nextElement);
+  }
+
+  updateComponent(prevElement, nextElement) {
+    const lastProps = prevElement.props;
+    const nextProps = nextElement.props;
+    console.log({ lastProps, nextProps });
+
+    this._updateDomProperties(lastProps, nextProps);
+    this._updateDomChildren(lastProps, nextProps);
+
+    this._currentElement = nextElement;
+  }
+
   mountComponent(container) {
-    console.log("FeactDOMComponent::mountComponent: ", this._currentElement);
     const { type, props } = this._currentElement;
     const { children } = props;
 
@@ -26,7 +76,6 @@ class FeactDOMComponent {
     } else {
       nextNode = document.createTextNode(children);
     }
-    console.log("next node is: ", nextNode);
     domElement.appendChild(nextNode);
 
     container.appendChild(domElement);
@@ -38,15 +87,38 @@ class FeactDOMComponent {
 
 class FeactCompositeComponentWrapper {
   constructor(element) {
-    console.log("FeactCompositeComponentWrapper::element", element);
     this._currentElement = element;
   }
 
+  receiveComponent(nextElement) {
+    const prevElement = this._currentElement;
+    this.updateComponent(prevElement, nextElement);
+  }
+
+  updateComponent(prevElement, nextElement) {
+    const nextProps = nextElement.props;
+
+    this._performComponentUpdate(nextElement, nextProps);
+  }
+
+  _performComponentUpdate(nextElement, nextProps) {
+    this._currentElement = nextElement;
+    const inst = this._instance;
+
+    inst.props = nextProps;
+
+    this._updateRenderedComponent();
+  }
+
+  _updateRenderedComponent() {
+    const prevComponentInstance = this._renderedComponent;
+    const inst = this._instance;
+    const nextRenderedElement = inst.render();
+
+    prevComponentInstance.receiveComponent(nextRenderedElement);
+  }
+
   mountComponent(container) {
-    console.log(
-      "FeactCompositeComponentWrapper::mountComponent",
-      this._currentElement
-    );
     const Component = this._currentElement.type;
     const componentInstance = new Component(this._currentElement.props);
     this._instance = componentInstance;
@@ -95,8 +167,6 @@ const Feact = {
     // Add the whole spec to the prototype.
     Constructor.prototype = Object.assign(Constructor.prototype, spec);
 
-    console.log(Constructor.prototype);
-
     return Constructor;
   },
 
@@ -114,37 +184,55 @@ const Feact = {
   },
 
   render(element, container) {
-    const wrapperElement = Feact.createElement(TopLevelWrapper, element);
-    const componentInstance = new FeactCompositeComponentWrapper(
-      wrapperElement
-    );
-    return FeactReconciler.mountComponent(componentInstance, container);
+    const prevComponent = getTopLevelComponentInContainer(container);
+
+    console.log({ prevComponent });
+
+    if (prevComponent) {
+      console.log("component already rendered.");
+      return updateRootComponent(prevComponent, element);
+    }
+
+    return renderNewRootComponent(element, container);
   }
 };
 
+function getTopLevelComponentInContainer(container) {
+  return container.__feactComponentInstance;
+}
+
+function updateRootComponent(prevComponent, nextElement) {
+  console.log("updateRootComponent", { prevComponent, nextElement });
+  prevComponent.receiveComponent(nextElement);
+}
+
+function renderNewRootComponent(element, container) {
+  const wrapperElement = Feact.createElement(TopLevelWrapper, element);
+  const componentInstance = new FeactCompositeComponentWrapper(wrapperElement);
+  const markup = FeactReconciler.mountComponent(componentInstance, container);
+
+  container.__feactComponentInstance = componentInstance._renderedComponent;
+
+  return markup;
+}
+
+//////////////////
+//////////////////
+
 const MyTitle = Feact.createClass({
   render() {
-    return Feact.createElement(
-      "div",
-      {},
-      Feact.createElement("h1", {}, this.props.message)
-    );
-  }
-});
-
-const MyMessage = Feact.createClass({
-  render() {
-    if (this.props.asTitle) {
-      return Feact.createElement(MyTitle, {
-        message: this.props.message
-      });
-    } else {
-      return Feact.createElement("p", null, this.props.message);
-    }
+    return Feact.createElement("h1", {}, this.props.message);
   }
 });
 
 Feact.render(
-  Feact.createElement(MyMessage, { asTitle: true, message: "Yo!" }),
+  Feact.createElement(MyTitle, { message: "Yo!" }),
   document.getElementById("app")
 );
+
+setTimeout(function() {
+  Feact.render(
+    Feact.createElement(MyTitle, { message: "Yo, again!" }),
+    document.getElementById("app")
+  );
+}, 3000);
