@@ -51,7 +51,15 @@ class FeactCompositeComponentWrapper {
     const componentInstance = new Component(this._currentElement.props);
     this._instance = componentInstance;
 
+    if (typeof componentInstance.componentWillMount === "function") {
+      componentInstance.componentWillMount();
+    }
+
     const markup = this.performInitialMount(container);
+
+    if (typeof componentInstance.componentDidMount === "function") {
+      componentInstance.componentDidMount();
+    }
 
     return markup;
   }
