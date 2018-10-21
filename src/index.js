@@ -1,16 +1,23 @@
 class FeactDOMComponent {
   constructor(element) {
+    console.log("FeactDOMComponent::element", element);
     this._currentElement = element;
   }
 
   mountComponent(container) {
     console.log("FeactDOMComponent::mountComponent: ", this._currentElement);
-    const { type, props, children } = this._currentElement;
+    const { type, props } = this._currentElement;
+    const { children } = props;
 
     const domElement = document.createElement(type);
-    const text = props.children;
-    const textNode = document.createTextNode(text);
-    domElement.appendChild(textNode);
+
+    let nextNode = undefined;
+    if (typeof children === "object") {
+      nextNode = Feact.render(children, container);
+    } else {
+      nextNode = document.createTextNode(children);
+    }
+    domElement.appendChild(nextNode);
 
     container.appendChild(domElement);
 
@@ -26,13 +33,34 @@ class FeactCompositeComponentWrapper {
   }
 
   mountComponent(container) {
+    console.log(
+      "FeactCompositeComponentWrapper::mountComponent",
+      this._currentElement
+    );
     const Component = this._currentElement.type;
     const componentInstance = new Component(this._currentElement.props);
-    const element = componentInstance.render();
+    let element = componentInstance.render();
+
+    // Keep rendering the returned elements until the next
+    // element is a primitive html type, e.g. 'div'.
+    while (typeof element.type === "function") {
+      element = new element.type(element.props).render();
+      console.log("next element", element);
+    }
+
     const domComponentInstance = new FeactDOMComponent(element);
     return domComponentInstance.mountComponent(container);
   }
 }
+
+// We use this by default in Feact.createElement. It is essentially
+// a very simple Composite Component. It only returns
+const TopLevelWrapper = function(props) {
+  this.props = props;
+};
+TopLevelWrapper.prototype.render = function() {
+  return this.props;
+};
 
 const Feact = {
   createClass(spec) {
@@ -59,25 +87,38 @@ const Feact = {
   },
 
   render(element, container) {
-    const componentInstance =
-      typeof element.type === "function"
-        ? new FeactCompositeComponentWrapper(element)
-        : new FeactDOMComponent(element);
+    const wrapperElement = Feact.createElement(TopLevelWrapper, element);
+    console.log({ wrapperElement });
+    const componentInstance = new FeactCompositeComponentWrapper(
+      wrapperElement
+    );
     return componentInstance.mountComponent(container);
   }
 };
 
-const HelloFeact = Feact.createClass({
-  constructor(props) {
-    this.props = props;
-  },
-
+const MyTitle = Feact.createClass({
   render() {
-    return Feact.createElement("h1", {}, this.props.message);
+    return Feact.createElement(
+      "div",
+      {},
+      Feact.createElement("h1", {}, this.props.message)
+    );
+  }
+});
+
+const MyMessage = Feact.createClass({
+  render() {
+    if (this.props.asTitle) {
+      return Feact.createElement(MyTitle, {
+        message: this.props.message
+      });
+    } else {
+      return Feact.createElement("p", null, this.props.message);
+    }
   }
 });
 
 Feact.render(
-  Feact.createElement(HelloFeact, { message: "Hello there Feact!" }),
+  Feact.createElement(MyMessage, { asTitle: true, message: "Yo!" }),
   document.getElementById("app")
 );
