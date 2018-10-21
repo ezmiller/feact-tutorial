@@ -87,8 +87,23 @@ class FeactCompositeComponentWrapper {
 
   updateComponent(prevElement, nextElement) {
     const nextProps = nextElement.props;
+    const inst = this._instance;
 
-    this._performComponentUpdate(nextElement, nextProps);
+    if (inst.componentWillReceiveProps) {
+      inst.componentWillReceiveProps(nextProps);
+    }
+
+    let shouldUpdate = true;
+
+    if (inst.shouldComponentUpdate) {
+      shouldUpdate = inst.shouldComponentUpdate(nextProps);
+    }
+
+    if (shouldUpdate) {
+      this._performComponentUpdate(nextElement, nextProps);
+    } else {
+      inst.props = nextProps;
+    }
   }
 
   _performComponentUpdate(nextElement, nextProps) {
