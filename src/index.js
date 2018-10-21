@@ -1,3 +1,12 @@
+// We use this by default in Feact.createElement. It is essentially
+// a very simple Composite Component. It only returns
+const TopLevelWrapper = function(props) {
+  this.props = props;
+};
+TopLevelWrapper.prototype.render = function() {
+  return this.props;
+};
+
 class FeactDOMComponent {
   constructor(element) {
     console.log("FeactDOMComponent::element", element);
@@ -17,6 +26,7 @@ class FeactDOMComponent {
     } else {
       nextNode = document.createTextNode(children);
     }
+    console.log("next node is: ", nextNode);
     domElement.appendChild(nextNode);
 
     container.appendChild(domElement);
@@ -68,15 +78,6 @@ const FeactReconciler = {
   }
 };
 
-// We use this by default in Feact.createElement. It is essentially
-// a very simple Composite Component. It only returns
-const TopLevelWrapper = function(props) {
-  this.props = props;
-};
-TopLevelWrapper.prototype.render = function() {
-  return this.props;
-};
-
 const Feact = {
   createClass(spec) {
     function Constructor(props) {
@@ -106,11 +107,10 @@ const Feact = {
 
   render(element, container) {
     const wrapperElement = Feact.createElement(TopLevelWrapper, element);
-    console.log({ wrapperElement });
     const componentInstance = new FeactCompositeComponentWrapper(
       wrapperElement
     );
-    return componentInstance.mountComponent(container);
+    return FeactReconciler.mountComponent(componentInstance, container);
   }
 };
 
