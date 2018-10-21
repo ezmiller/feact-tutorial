@@ -39,19 +39,34 @@ class FeactCompositeComponentWrapper {
     );
     const Component = this._currentElement.type;
     const componentInstance = new Component(this._currentElement.props);
-    let element = componentInstance.render();
+    this._instance = componentInstance;
 
-    // Keep rendering the returned elements until the next
-    // element is a primitive html type, e.g. 'div'.
-    while (typeof element.type === "function") {
-      element = new element.type(element.props).render();
-      console.log("next element", element);
-    }
+    const markup = this.performInitialMount(container);
 
-    const domComponentInstance = new FeactDOMComponent(element);
-    return domComponentInstance.mountComponent(container);
+    return markup;
+  }
+
+  performInitialMount(container) {
+    const renderedElement = this._instance.render();
+    const child = instantiateFeactComponent(renderedElement);
+    this._renderedComponent = child;
+    return FeactReconciler.mountComponent(child, container);
   }
 }
+
+function instantiateFeactComponent(element) {
+  if (typeof element.type === "string") {
+    return new FeactDOMComponent(element);
+  } else if (typeof element.type === "function") {
+    return new FeactCompositeComponentWrapper(element);
+  }
+}
+
+const FeactReconciler = {
+  mountComponent(internalInstance, container) {
+    return internalInstance.mountComponent(container);
+  }
+};
 
 // We use this by default in Feact.createElement. It is essentially
 // a very simple Composite Component. It only returns
@@ -68,7 +83,10 @@ const Feact = {
       this.props = props;
     }
 
-    Constructor.prototype.render = spec.render;
+    // Add the whole spec to the prototype.
+    Constructor.prototype = Object.assign(Constructor.prototype, spec);
+
+    console.log(Constructor.prototype);
 
     return Constructor;
   },
