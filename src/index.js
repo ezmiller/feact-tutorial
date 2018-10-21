@@ -48,11 +48,6 @@ class FeactDOMComponent {
     node.textContent = text;
   }
 
-  receiveComponent(nextElement) {
-    const prevElement = this._currentElement;
-    this.updateComponent(prevElement, nextElement);
-  }
-
   updateComponent(prevElement, nextElement) {
     const lastProps = prevElement.props;
     const nextProps = nextElement.props;
@@ -90,11 +85,6 @@ class FeactCompositeComponentWrapper {
     this._currentElement = element;
   }
 
-  receiveComponent(nextElement) {
-    const prevElement = this._currentElement;
-    this.updateComponent(prevElement, nextElement);
-  }
-
   updateComponent(prevElement, nextElement) {
     const nextProps = nextElement.props;
 
@@ -115,7 +105,10 @@ class FeactCompositeComponentWrapper {
     const inst = this._instance;
     const nextRenderedElement = inst.render();
 
-    prevComponentInstance.receiveComponent(nextRenderedElement);
+    FeactReconciler.receiveComponent(
+      prevComponentInstance,
+      nextRenderedElement
+    );
   }
 
   mountComponent(container) {
@@ -153,6 +146,13 @@ function instantiateFeactComponent(element) {
 }
 
 const FeactReconciler = {
+  receiveComponent(internalInstance, nextElement) {
+    internalInstance.updateComponent(
+      internalInstance._currentElement,
+      nextElement
+    );
+  },
+
   mountComponent(internalInstance, container) {
     return internalInstance.mountComponent(container);
   }
@@ -202,8 +202,7 @@ function getTopLevelComponentInContainer(container) {
 }
 
 function updateRootComponent(prevComponent, nextElement) {
-  console.log("updateRootComponent", { prevComponent, nextElement });
-  prevComponent.receiveComponent(nextElement);
+  FeactReconciler.receiveComponent(prevComponent, nextElement);
 }
 
 function renderNewRootComponent(element, container) {
