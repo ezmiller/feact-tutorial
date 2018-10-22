@@ -177,6 +177,10 @@ const Feact = {
   createClass(spec) {
     function Constructor(props) {
       this.props = props;
+
+      const initialState = this.getInitialState ? this.getInitialState() : null;
+
+      this.state = initialState;
     }
 
     // Add the whole spec to the prototype.
