@@ -173,6 +173,22 @@ const FeactReconciler = {
   }
 };
 
+function FeactComponent() {
+  // implement later
+}
+
+FeactComponent.prototype.setState = function setState() {
+  // implement later
+};
+
+function mixSpecIntoComponent(Constructor, spec) {
+  const proto = Constructor.prototype;
+
+  for (const key in spec) {
+    proto[key] = spec[key];
+  }
+}
+
 const Feact = {
   createClass(spec) {
     function Constructor(props) {
@@ -184,7 +200,10 @@ const Feact = {
     }
 
     // Add the whole spec to the prototype.
-    Constructor.prototype = Object.assign(Constructor.prototype, spec);
+    Constructor.prototype = new FeactComponent();
+
+    // Put the spec methods supplied by user onto our new Constructor.
+    mixSpecIntoComponent(Constructor, spec);
 
     return Constructor;
   },
